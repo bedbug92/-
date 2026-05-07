@@ -1,0 +1,1411 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>围棋 · Go · 바둑</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=Noto+Serif+SC:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cream: #FFF8F2;
+    --blush: #F9C5D1;
+    --rose: #E8A0B0;
+    --lavender: #D4B8E0;
+    --lavender-light: #EDE0F5;
+    --mint: #B8DDD5;
+    --mint-light: #D6EFE9;
+    --peach: #FDDBC5;
+    --peach-dark: #F5C4A0;
+    --mauve: #C9A9C0;
+    --text-dark: #5A3D4A;
+    --text-mid: #8C6B78;
+    --text-light: #B89BA5;
+    --board-bg: #F2D9B8;
+    --board-line: #C8A882;
+    --board-dark: #D4BA90;
+    --shadow-soft: 0 8px 32px rgba(180,140,160,0.18);
+    --shadow-card: 0 4px 20px rgba(180,140,160,0.14);
+    --radius-lg: 24px;
+    --radius-md: 16px;
+    --radius-sm: 10px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #FFF0F5 0%, #F5EEFF 30%, #EAF6F3 60%, #FFF5EE 100%);
+    font-family: 'Noto Serif SC', 'Playfair Display', serif;
+    color: var(--text-dark);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow-x: hidden;
+  }
+
+  /* Decorative blobs */
+  body::before {
+    content: '';
+    position: fixed;
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(212,184,224,0.25) 0%, transparent 70%);
+    top: -100px; left: -150px;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 0;
+  }
+  body::after {
+    content: '';
+    position: fixed;
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, rgba(184,221,213,0.22) 0%, transparent 70%);
+    bottom: -80px; right: -100px;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Header */
+  .header {
+    text-align: center;
+    padding: 32px 20px 16px;
+    position: relative;
+    z-index: 1;
+  }
+  .header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 2.6rem;
+    font-weight: 600;
+    background: linear-gradient(135deg, var(--rose) 0%, var(--lavender) 50%, var(--mint) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: 4px;
+    margin-bottom: 4px;
+  }
+  .header p {
+    font-size: 0.82rem;
+    color: var(--text-light);
+    letter-spacing: 3px;
+    font-weight: 300;
+  }
+
+  /* Main layout */
+  .main {
+    display: flex;
+    gap: 20px;
+    padding: 10px 24px 30px;
+    align-items: flex-start;
+    justify-content: center;
+    position: relative;
+    z-index: 1;
+    flex-wrap: wrap;
+    max-width: 1200px;
+    width: 100%;
+  }
+
+  /* Cards */
+  .card {
+    background: rgba(255,255,255,0.72);
+    backdrop-filter: blur(16px);
+    border-radius: var(--radius-lg);
+    border: 1px solid rgba(255,255,255,0.85);
+    box-shadow: var(--shadow-card);
+    padding: 20px;
+  }
+
+  /* Left panel */
+  .left-panel { width: 210px; display: flex; flex-direction: column; gap: 14px; }
+
+  .panel-title {
+    font-size: 0.68rem;
+    letter-spacing: 2.5px;
+    color: var(--text-light);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    font-weight: 400;
+  }
+
+  /* Rules selector */
+  .rules-group { display: flex; flex-direction: column; gap: 8px; }
+  .rule-btn {
+    padding: 9px 14px;
+    border-radius: var(--radius-sm);
+    border: 1.5px solid transparent;
+    background: rgba(212,184,224,0.12);
+    color: var(--text-mid);
+    font-size: 0.82rem;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.25s;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .rule-btn:hover { background: rgba(212,184,224,0.22); }
+  .rule-btn.active {
+    background: linear-gradient(135deg, rgba(212,184,224,0.35), rgba(249,197,209,0.3));
+    border-color: var(--lavender);
+    color: var(--text-dark);
+    font-weight: 500;
+  }
+  .rule-flag { font-size: 1rem; }
+
+  /* Board size */
+  .size-group { display: flex; gap: 6px; }
+  .size-btn {
+    flex: 1;
+    padding: 8px 4px;
+    border-radius: var(--radius-sm);
+    border: 1.5px solid transparent;
+    background: rgba(184,221,213,0.12);
+    color: var(--text-mid);
+    font-size: 0.78rem;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.25s;
+    text-align: center;
+  }
+  .size-btn:hover { background: rgba(184,221,213,0.22); }
+  .size-btn.active {
+    background: linear-gradient(135deg, rgba(184,221,213,0.4), rgba(253,219,197,0.3));
+    border-color: var(--mint);
+    color: var(--text-dark);
+    font-weight: 600;
+  }
+
+  /* Komi */
+  .komi-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .komi-label { font-size: 0.78rem; color: var(--text-mid); }
+  .komi-input {
+    width: 70px;
+    padding: 6px 10px;
+    border-radius: var(--radius-sm);
+    border: 1.5px solid var(--lavender);
+    background: rgba(255,255,255,0.6);
+    font-size: 0.82rem;
+    font-family: inherit;
+    color: var(--text-dark);
+    text-align: center;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .komi-input:focus { border-color: var(--rose); }
+
+  /* Handicap */
+  .handicap-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .handicap-label { font-size: 0.78rem; color: var(--text-mid); }
+  .handicap-select {
+    padding: 6px 10px;
+    border-radius: var(--radius-sm);
+    border: 1.5px solid var(--lavender);
+    background: rgba(255,255,255,0.6);
+    font-size: 0.82rem;
+    font-family: inherit;
+    color: var(--text-dark);
+    outline: none;
+    cursor: pointer;
+  }
+
+  /* Players */
+  .player-card {
+    border-radius: var(--radius-md);
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    transition: all 0.3s;
+  }
+  .player-card.black-player {
+    background: linear-gradient(135deg, rgba(90,61,74,0.08), rgba(90,61,74,0.04));
+    border: 1.5px solid rgba(90,61,74,0.12);
+  }
+  .player-card.white-player {
+    background: linear-gradient(135deg, rgba(249,197,209,0.18), rgba(212,184,224,0.12));
+    border: 1.5px solid rgba(212,184,224,0.3);
+  }
+  .player-card.active-player {
+    box-shadow: 0 0 0 2px var(--blush), 0 4px 16px rgba(200,140,160,0.2);
+  }
+  .player-stone {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+    position: relative;
+  }
+  .player-stone.black {
+    background: radial-gradient(circle at 35% 35%, #6b5360, #1a0f15);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.4), inset 0 1px 3px rgba(255,255,255,0.15);
+  }
+  .player-stone.white {
+    background: radial-gradient(circle at 35% 35%, #fff9fb, #e8d5dc);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2), inset 0 1px 3px rgba(255,255,255,0.8);
+  }
+  .player-info { display: flex; align-items: center; gap: 10px; }
+  .player-name { font-size: 0.88rem; font-weight: 500; color: var(--text-dark); }
+  .player-caption { font-size: 0.7rem; color: var(--text-light); }
+  .capture-count {
+    font-size: 0.78rem;
+    color: var(--text-mid);
+    margin-top: 2px;
+  }
+  .turn-indicator {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--rose);
+    animation: pulse 1.2s ease-in-out infinite;
+    margin-left: auto;
+  }
+  @keyframes pulse {
+    0%,100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.4); opacity: 0.7; }
+  }
+
+  /* Timer */
+  .timer {
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: var(--text-dark);
+    text-align: center;
+    letter-spacing: 2px;
+  }
+  .timer-label { font-size: 0.68rem; color: var(--text-light); text-align: center; letter-spacing: 1px; }
+
+  /* Right panel */
+  .right-panel { width: 210px; display: flex; flex-direction: column; gap: 14px; }
+
+  /* Action buttons */
+  .action-btn {
+    width: 100%;
+    padding: 11px 16px;
+    border-radius: var(--radius-sm);
+    border: none;
+    font-family: inherit;
+    font-size: 0.82rem;
+    cursor: pointer;
+    transition: all 0.25s;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--rose), var(--lavender));
+    color: white;
+    box-shadow: 0 4px 14px rgba(200,140,160,0.35);
+  }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(200,140,160,0.45); }
+  .btn-secondary {
+    background: rgba(184,221,213,0.25);
+    color: var(--text-mid);
+    border: 1.5px solid rgba(184,221,213,0.5);
+  }
+  .btn-secondary:hover { background: rgba(184,221,213,0.4); }
+  .btn-danger {
+    background: rgba(249,197,209,0.3);
+    color: var(--rose);
+    border: 1.5px solid rgba(249,197,209,0.6);
+  }
+  .btn-danger:hover { background: rgba(249,197,209,0.5); }
+  .btn-warn {
+    background: rgba(253,219,197,0.35);
+    color: var(--peach-dark);
+    border: 1.5px solid rgba(253,219,197,0.6);
+  }
+  .btn-warn:hover { background: rgba(253,219,197,0.55); }
+  .action-btn:active { transform: scale(0.97); }
+
+  /* Move list */
+  .move-list {
+    max-height: 180px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    font-size: 0.72rem;
+    scrollbar-width: thin;
+    scrollbar-color: var(--blush) transparent;
+  }
+  .move-item {
+    display: flex;
+    gap: 8px;
+    padding: 4px 6px;
+    border-radius: 6px;
+    color: var(--text-mid);
+    align-items: center;
+  }
+  .move-item:nth-child(even) { background: rgba(212,184,224,0.07); }
+  .move-num { color: var(--text-light); width: 22px; text-align: right; }
+  .move-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .move-dot.b { background: #3a2530; }
+  .move-dot.w { background: #dcc8d0; border: 1px solid #bba0ac; }
+  .move-coord { flex: 1; }
+
+  /* Score display */
+  .score-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .score-item {
+    background: rgba(255,255,255,0.5);
+    border-radius: var(--radius-sm);
+    padding: 10px;
+    text-align: center;
+  }
+  .score-label { font-size: 0.65rem; color: var(--text-light); letter-spacing: 1px; margin-bottom: 4px; }
+  .score-value { font-size: 1.1rem; font-weight: 600; color: var(--text-dark); }
+  .score-value.black { color: #3a2530; }
+  .score-value.white { color: var(--mauve); }
+
+  /* Board container */
+  .board-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .board-container {
+    position: relative;
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    background: linear-gradient(145deg, #f5dcba, #eed5a8);
+    box-shadow:
+      0 12px 40px rgba(140,100,60,0.25),
+      inset 0 1px 0 rgba(255,255,255,0.4),
+      inset 0 -1px 0 rgba(0,0,0,0.06);
+    border: 1px solid rgba(255,255,255,0.5);
+  }
+
+  #goCanvas {
+    display: block;
+    cursor: pointer;
+    border-radius: 4px;
+  }
+
+  /* Status bar */
+  .status-bar {
+    text-align: center;
+    font-size: 0.8rem;
+    color: var(--text-mid);
+    padding: 8px 20px;
+    border-radius: var(--radius-sm);
+    background: rgba(255,255,255,0.5);
+    letter-spacing: 0.5px;
+    min-width: 300px;
+  }
+  .status-bar.warning { color: var(--rose); }
+
+  /* Coord labels */
+  .coord-labels {
+    display: flex;
+    justify-content: center;
+    font-size: 0.65rem;
+    color: var(--text-light);
+    letter-spacing: 1px;
+    user-select: none;
+  }
+
+  /* Modal overlay */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(200,170,190,0.35);
+    backdrop-filter: blur(8px);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: rgba(255,255,255,0.92);
+    border-radius: var(--radius-lg);
+    padding: 36px;
+    max-width: 420px;
+    width: 90%;
+    box-shadow: 0 20px 60px rgba(180,120,150,0.3);
+    border: 1px solid rgba(255,255,255,0.9);
+    text-align: center;
+    animation: modalIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  @keyframes modalIn {
+    from { transform: scale(0.85) translateY(20px); opacity: 0; }
+    to { transform: scale(1) translateY(0); opacity: 1; }
+  }
+  .modal h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.8rem;
+    background: linear-gradient(135deg, var(--rose), var(--lavender));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 8px;
+  }
+  .modal p {
+    font-size: 0.88rem;
+    color: var(--text-mid);
+    margin-bottom: 20px;
+    line-height: 1.7;
+  }
+  .modal-scores {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    margin-bottom: 24px;
+  }
+  .modal-score-box {
+    padding: 16px 24px;
+    border-radius: var(--radius-md);
+    text-align: center;
+    flex: 1;
+  }
+  .modal-score-box.black { background: linear-gradient(135deg, rgba(90,61,74,0.1), rgba(90,61,74,0.05)); border: 1.5px solid rgba(90,61,74,0.15); }
+  .modal-score-box.white { background: linear-gradient(135deg, rgba(212,184,224,0.2), rgba(249,197,209,0.15)); border: 1.5px solid rgba(212,184,224,0.3); }
+  .modal-score-box .s-label { font-size: 0.68rem; color: var(--text-light); letter-spacing: 1.5px; margin-bottom: 6px; }
+  .modal-score-box .s-val { font-size: 2rem; font-weight: 600; color: var(--text-dark); }
+  .modal-winner { font-size: 1.1rem; font-weight: 500; color: var(--text-dark); margin-bottom: 24px; }
+  .modal-btns { display: flex; gap: 12px; justify-content: center; }
+  .modal-btns .action-btn { flex: 1; }
+
+  /* Responsive */
+  @media (max-width: 860px) {
+    .left-panel, .right-panel { width: 100%; flex-direction: row; flex-wrap: wrap; }
+    .left-panel .card, .right-panel .card { flex: 1; min-width: 150px; }
+    .main { flex-direction: column; align-items: center; padding: 10px 12px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>围 棋 · Go · 바둑</h1>
+  <p>THE ANCIENT GAME OF STRATEGY</p>
+</div>
+
+<div class="main">
+
+  <!-- Left Panel -->
+  <div class="left-panel">
+
+    <!-- Rules -->
+    <div class="card">
+      <div class="panel-title">规则 · Rules</div>
+      <div class="rules-group">
+        <button class="rule-btn active" onclick="setRules('chinese')" id="btn-chinese">
+          <span class="rule-flag">🇨🇳</span> 中国规则
+        </button>
+        <button class="rule-btn" onclick="setRules('japanese')" id="btn-japanese">
+          <span class="rule-flag">🇯🇵</span> 日本规则
+        </button>
+        <button class="rule-btn" onclick="setRules('korean')" id="btn-korean">
+          <span class="rule-flag">🇰🇷</span> 韩国规则
+        </button>
+      </div>
+    </div>
+
+    <!-- Board Size -->
+    <div class="card">
+      <div class="panel-title">棋盘 · Board</div>
+      <div class="size-group">
+        <button class="size-btn" onclick="setSize(9)" id="btn-9">9×9</button>
+        <button class="size-btn" onclick="setSize(13)" id="btn-13">13×13</button>
+        <button class="size-btn active" onclick="setSize(19)" id="btn-19">19×19</button>
+      </div>
+    </div>
+
+    <!-- Settings -->
+    <div class="card">
+      <div class="panel-title">设置 · Settings</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div class="komi-row">
+          <span class="komi-label">贴目 Komi</span>
+          <input class="komi-input" type="number" id="komiInput" value="7.5" step="0.5" min="0" max="15" onchange="komi=parseFloat(this.value)||7.5">
+        </div>
+        <div class="handicap-row">
+          <span class="handicap-label">让子 Handicap</span>
+          <select class="handicap-select" id="handicapSelect" onchange="handicap=parseInt(this.value)">
+            <option value="0">无</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+            <option value="6">6</option>
+            <option value="7">7</option>
+            <option value="8">8</option>
+            <option value="9">9</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Players -->
+    <div class="card">
+      <div class="panel-title">对局 · Players</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div class="player-card black-player" id="blackCard">
+          <div class="player-info">
+            <span class="player-stone black"></span>
+            <div>
+              <div class="player-name">黑方 Black</div>
+              <div class="player-caption">先行 · First</div>
+            </div>
+            <span class="turn-indicator" id="blackIndicator"></span>
+          </div>
+          <div class="capture-count" id="blackCaptures">提子: 0 枚</div>
+        </div>
+        <div class="player-card white-player" id="whiteCard">
+          <div class="player-info">
+            <span class="player-stone white"></span>
+            <div>
+              <div class="player-name">白方 White</div>
+              <div class="player-caption">后行 · Second</div>
+            </div>
+            <span class="turn-indicator" id="whiteIndicator" style="display:none"></span>
+          </div>
+          <div class="capture-count" id="whiteCaptures">提子: 0 枚</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Timer -->
+    <div class="card" style="text-align:center">
+      <div class="panel-title">计时 · Timer</div>
+      <div class="timer" id="timerDisplay">00:00</div>
+      <div class="timer-label" id="timerLabel" style="margin-top:4px">游戏进行中</div>
+    </div>
+
+  </div>
+
+  <!-- Board -->
+  <div class="board-wrapper">
+    <div class="board-container">
+      <canvas id="goCanvas"></canvas>
+    </div>
+    <div class="status-bar" id="statusBar">黑方落子 · Black to play</div>
+  </div>
+
+  <!-- Right Panel -->
+  <div class="right-panel">
+
+    <!-- Actions -->
+    <div class="card">
+      <div class="panel-title">操作 · Actions</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button class="action-btn btn-primary" onclick="startNewGame()">新局 New Game</button>
+        <button class="action-btn btn-secondary" onclick="passMove()">虚手 Pass</button>
+        <button class="action-btn btn-warn" onclick="undoMove()">悔棋 Undo</button>
+        <button class="action-btn btn-danger" onclick="resignGame()">投降 Resign</button>
+        <button class="action-btn btn-secondary" onclick="countScore()">计算得分</button>
+      </div>
+    </div>
+
+    <!-- Score -->
+    <div class="card">
+      <div class="panel-title">得分 · Score</div>
+      <div class="score-grid">
+        <div class="score-item">
+          <div class="score-label">BLACK</div>
+          <div class="score-value black" id="scoreBlack">—</div>
+        </div>
+        <div class="score-item">
+          <div class="score-label">WHITE</div>
+          <div class="score-value white" id="scoreWhite">—</div>
+        </div>
+        <div class="score-item">
+          <div class="score-label">KOMI</div>
+          <div class="score-value" id="scoreKomi" style="color:var(--mauve)">7.5</div>
+        </div>
+        <div class="score-item">
+          <div class="score-label">MOVES</div>
+          <div class="score-value" id="scoreMoves" style="color:var(--text-mid)">0</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Move History -->
+    <div class="card">
+      <div class="panel-title">棋谱 · Moves</div>
+      <div class="move-list" id="moveList"></div>
+    </div>
+
+    <!-- Rules Info -->
+    <div class="card" id="rulesInfo">
+      <div class="panel-title">规则说明</div>
+      <div id="rulesText" style="font-size:0.72rem;color:var(--text-mid);line-height:1.8">
+        <strong>中国规则：</strong><br>
+        · 数地法（地 + 子）<br>
+        · 贴目 7.5<br>
+        · 禁止自杀<br>
+        · 劫争规则
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Result Modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h2 id="modalTitle">对局结束</h2>
+    <p id="modalDesc">恭喜！</p>
+    <div class="modal-scores">
+      <div class="modal-score-box black">
+        <div class="s-label">⚫ BLACK</div>
+        <div class="s-val" id="modalBlack">—</div>
+      </div>
+      <div class="modal-score-box white">
+        <div class="s-label">⚪ WHITE</div>
+        <div class="s-val" id="modalWhite">—</div>
+      </div>
+    </div>
+    <div class="modal-winner" id="modalWinner"></div>
+    <div class="modal-btns">
+      <button class="action-btn btn-primary" onclick="startNewGame();closeModal()">新局</button>
+      <button class="action-btn btn-secondary" onclick="closeModal()">查看棋局</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── GAME STATE ───────────────────────────────────────────────────
+let boardSize = 19;
+let board = [];
+let currentPlayer = 1; // 1=black, 2=white
+let captures = {1: 0, 2: 0};
+let koPoint = null; // {r, c}
+let lastBoardState = null;
+let moveHistory = []; // {board, player, captures, ko, coord}
+let passCount = 0;
+let gameOver = false;
+let rules = 'chinese';
+let komi = 7.5;
+let handicap = 0;
+let moveCount = 0;
+let timer = 0;
+let timerInterval = null;
+let hoverPos = null;
+
+// Canvas setup
+const canvas = document.getElementById('goCanvas');
+const ctx = canvas.getContext('2d');
+
+const CELL_SIZE_MAP = { 9: 44, 13: 38, 19: 32 };
+let CELL = 32;
+let MARGIN = 40;
+let STONE_R;
+
+// ─── HANDICAP POSITIONS ───────────────────────────────────────────
+const HANDICAP_POS = {
+  19: {
+    2: [[3,15],[15,3]],
+    3: [[3,15],[15,3],[15,15]],
+    4: [[3,3],[3,15],[15,3],[15,15]],
+    5: [[3,3],[3,15],[9,9],[15,3],[15,15]],
+    6: [[3,3],[3,9],[3,15],[15,3],[15,9],[15,15]],
+    7: [[3,3],[3,9],[3,15],[9,9],[15,3],[15,9],[15,15]],
+    8: [[3,3],[3,9],[3,15],[9,3],[9,15],[15,3],[15,9],[15,15]],
+    9: [[3,3],[3,9],[3,15],[9,3],[9,9],[9,15],[15,3],[15,9],[15,15]]
+  },
+  13: {
+    2: [[3,9],[9,3]],
+    3: [[3,9],[9,3],[9,9]],
+    4: [[3,3],[3,9],[9,3],[9,9]],
+    5: [[3,3],[3,9],[6,6],[9,3],[9,9]],
+    9: [[3,3],[3,6],[3,9],[6,3],[6,6],[6,9],[9,3],[9,6],[9,9]]
+  },
+  9: {
+    2: [[2,6],[6,2]],
+    3: [[2,6],[6,2],[6,6]],
+    4: [[2,2],[2,6],[6,2],[6,6]],
+    5: [[2,2],[2,6],[4,4],[6,2],[6,6]]
+  }
+};
+
+// ─── INIT ─────────────────────────────────────────────────────────
+function initBoard() {
+  board = Array.from({length: boardSize}, () => new Array(boardSize).fill(0));
+  captures = {1: 0, 2: 0};
+  koPoint = null;
+  lastBoardState = null;
+  moveHistory = [];
+  passCount = 0;
+  gameOver = false;
+  moveCount = 0;
+  currentPlayer = 1;
+  hoverPos = null;
+
+  // Place handicap stones
+  if (handicap >= 2 && HANDICAP_POS[boardSize] && HANDICAP_POS[boardSize][handicap]) {
+    HANDICAP_POS[boardSize][handicap].forEach(([r, c]) => {
+      board[r][c] = 1;
+    });
+    currentPlayer = 2; // white goes first after handicap
+  }
+
+  CELL = CELL_SIZE_MAP[boardSize] || 32;
+  MARGIN = boardSize === 9 ? 44 : boardSize === 13 ? 40 : 36;
+  STONE_R = CELL * 0.47;
+
+  const boardPx = (boardSize - 1) * CELL + MARGIN * 2;
+  canvas.width = boardPx;
+  canvas.height = boardPx;
+
+  clearTimer();
+  startTimer();
+  updateUI();
+  render();
+}
+
+// ─── RENDER ───────────────────────────────────────────────────────
+function render() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawBoard();
+  drawStarPoints();
+  drawCoords();
+  drawStones();
+  drawHover();
+  drawLastMove();
+}
+
+function drawBoard() {
+  ctx.fillStyle = '#f0d8a0';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  
+  // Grid lines
+  ctx.strokeStyle = '#b8955a';
+  ctx.lineWidth = 0.8;
+  for (let i = 0; i < boardSize; i++) {
+    const x = MARGIN + i * CELL;
+    const y = MARGIN + i * CELL;
+    // Vertical
+    ctx.beginPath();
+    ctx.moveTo(x, MARGIN);
+    ctx.lineTo(x, MARGIN + (boardSize - 1) * CELL);
+    ctx.stroke();
+    // Horizontal
+    ctx.beginPath();
+    ctx.moveTo(MARGIN, y);
+    ctx.lineTo(MARGIN + (boardSize - 1) * CELL, y);
+    ctx.stroke();
+  }
+
+  // Border
+  ctx.strokeStyle = '#8c6a3a';
+  ctx.lineWidth = 1.6;
+  ctx.strokeRect(MARGIN - 0.4, MARGIN - 0.4, (boardSize-1)*CELL + 0.8, (boardSize-1)*CELL + 0.8);
+}
+
+function drawStarPoints() {
+  const stars = getStarPoints();
+  ctx.fillStyle = '#8c6a3a';
+  stars.forEach(([r, c]) => {
+    const x = MARGIN + c * CELL;
+    const y = MARGIN + r * CELL;
+    ctx.beginPath();
+    ctx.arc(x, y, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+  });
+}
+
+function getStarPoints() {
+  if (boardSize === 19) {
+    return [[3,3],[3,9],[3,15],[9,3],[9,9],[9,15],[15,3],[15,9],[15,15]];
+  } else if (boardSize === 13) {
+    return [[3,3],[3,9],[6,6],[9,3],[9,9]];
+  } else {
+    return [[2,2],[2,6],[4,4],[6,2],[6,6]];
+  }
+}
+
+function drawCoords() {
+  ctx.font = `${CELL * 0.34}px 'Noto Serif SC', serif`;
+  ctx.fillStyle = '#a0784a';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const letters = 'ABCDEFGHJKLMNOPQRST'; // skip I
+  for (let i = 0; i < boardSize; i++) {
+    const x = MARGIN + i * CELL;
+    // Top col labels
+    ctx.fillText(letters[i], x, MARGIN - 22);
+    ctx.fillText(letters[i], x, MARGIN + (boardSize-1)*CELL + 22);
+    // Row labels
+    const label = boardSize - i;
+    ctx.fillText(label, MARGIN - 22, MARGIN + i * CELL);
+    ctx.fillText(label, MARGIN + (boardSize-1)*CELL + 22, MARGIN + i * CELL);
+  }
+}
+
+function drawStones() {
+  for (let r = 0; r < boardSize; r++) {
+    for (let c = 0; c < boardSize; c++) {
+      if (board[r][c] !== 0) {
+        drawStone(r, c, board[r][c]);
+      }
+    }
+  }
+}
+
+function drawStone(r, c, player, alpha = 1) {
+  const x = MARGIN + c * CELL;
+  const y = MARGIN + r * CELL;
+  
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  
+  if (player === 1) {
+    // Black stone
+    const grad = ctx.createRadialGradient(x - STONE_R*0.25, y - STONE_R*0.25, STONE_R*0.05, x, y, STONE_R);
+    grad.addColorStop(0, '#7a6070');
+    grad.addColorStop(0.4, '#2a1520');
+    grad.addColorStop(1, '#0e080d');
+    ctx.beginPath();
+    ctx.arc(x, y, STONE_R, 0, Math.PI*2);
+    ctx.fillStyle = grad;
+    ctx.shadowColor = 'rgba(0,0,0,0.5)';
+    ctx.shadowBlur = 6;
+    ctx.shadowOffsetX = 2;
+    ctx.shadowOffsetY = 3;
+    ctx.fill();
+    // Highlight
+    ctx.shadowColor = 'transparent';
+    ctx.beginPath();
+    ctx.arc(x - STONE_R*0.28, y - STONE_R*0.28, STONE_R*0.18, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(255,255,255,0.22)';
+    ctx.fill();
+  } else {
+    // White stone
+    const grad = ctx.createRadialGradient(x - STONE_R*0.25, y - STONE_R*0.25, STONE_R*0.05, x, y, STONE_R);
+    grad.addColorStop(0, '#fffafc');
+    grad.addColorStop(0.5, '#f0e0e8');
+    grad.addColorStop(1, '#d4b8c0');
+    ctx.beginPath();
+    ctx.arc(x, y, STONE_R, 0, Math.PI*2);
+    ctx.fillStyle = grad;
+    ctx.shadowColor = 'rgba(0,0,0,0.25)';
+    ctx.shadowBlur = 5;
+    ctx.shadowOffsetX = 1.5;
+    ctx.shadowOffsetY = 2.5;
+    ctx.fill();
+    ctx.shadowColor = 'transparent';
+    ctx.beginPath();
+    ctx.arc(x, y, STONE_R, 0, Math.PI*2);
+    ctx.strokeStyle = 'rgba(180,140,155,0.4)';
+    ctx.lineWidth = 0.8;
+    ctx.stroke();
+    // Highlight
+    ctx.beginPath();
+    ctx.arc(x - STONE_R*0.28, y - STONE_R*0.28, STONE_R*0.22, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(255,255,255,0.65)';
+    ctx.fill();
+  }
+  
+  ctx.restore();
+}
+
+function drawHover() {
+  if (!hoverPos || gameOver) return;
+  const {r, c} = hoverPos;
+  if (board[r][c] !== 0) return;
+  // Check if move is valid before showing hover
+  if (isKoPoint(r, c)) return;
+  drawStone(r, c, currentPlayer, 0.35);
+}
+
+function drawLastMove() {
+  if (moveHistory.length === 0) return;
+  const last = moveHistory[moveHistory.length - 1];
+  if (!last.coord || last.coord === 'pass') return;
+  const {r, c} = last.coord;
+  const x = MARGIN + c * CELL;
+  const y = MARGIN + r * CELL;
+  ctx.beginPath();
+  ctx.arc(x, y, STONE_R * 0.32, 0, Math.PI * 2);
+  ctx.fillStyle = last.player === 1 ? 'rgba(255,255,255,0.7)' : 'rgba(40,20,30,0.55)';
+  ctx.fill();
+}
+
+// ─── GAME LOGIC ───────────────────────────────────────────────────
+function getAdjacentPoints(r, c) {
+  const pts = [];
+  if (r > 0) pts.push([r-1, c]);
+  if (r < boardSize-1) pts.push([r+1, c]);
+  if (c > 0) pts.push([r, c-1]);
+  if (c < boardSize-1) pts.push([r, c+1]);
+  return pts;
+}
+
+function getGroup(r, c) {
+  const color = board[r][c];
+  if (color === 0) return null;
+  const group = [];
+  const visited = new Set();
+  const queue = [[r, c]];
+  visited.add(r * boardSize + c);
+  while (queue.length > 0) {
+    const [cr, cc] = queue.shift();
+    group.push([cr, cc]);
+    for (const [nr, nc] of getAdjacentPoints(cr, cc)) {
+      const key = nr * boardSize + nc;
+      if (!visited.has(key) && board[nr][nc] === color) {
+        visited.add(key);
+        queue.push([nr, nc]);
+      }
+    }
+  }
+  return group;
+}
+
+function getLiberties(group) {
+  const libs = new Set();
+  for (const [r, c] of group) {
+    for (const [nr, nc] of getAdjacentPoints(r, c)) {
+      if (board[nr][nc] === 0) libs.add(nr * boardSize + nc);
+    }
+  }
+  return libs;
+}
+
+function captureGroup(group) {
+  for (const [r, c] of group) {
+    board[r][c] = 0;
+  }
+}
+
+function boardToString() {
+  return board.map(row => row.join(',')).join('|');
+}
+
+function isKoPoint(r, c) {
+  return koPoint && koPoint.r === r && koPoint.c === c;
+}
+
+function placeStone(r, c) {
+  if (gameOver) return;
+  if (r < 0 || r >= boardSize || c < 0 || c >= boardSize) return;
+  if (board[r][c] !== 0) return;
+  if (isKoPoint(r, c)) {
+    setStatus('劫争禁止落子！Ko point forbidden', true);
+    return;
+  }
+
+  const opponent = currentPlayer === 1 ? 2 : 1;
+  
+  // Temporarily place stone
+  board[r][c] = currentPlayer;
+  
+  // Find and capture opponent groups with 0 liberties
+  let captured = 0;
+  let capturedPositions = [];
+  for (const [nr, nc] of getAdjacentPoints(r, c)) {
+    if (board[nr][nc] === opponent) {
+      const group = getGroup(nr, nc);
+      if (getLiberties(group).size === 0) {
+        captured += group.length;
+        capturedPositions.push(...group);
+        captureGroup(group);
+      }
+    }
+  }
+  
+  // Check suicide (self-capture)
+  const myGroup = getGroup(r, c);
+  if (getLiberties(myGroup).size === 0) {
+    // Chinese rules: no suicide
+    // Japanese/Korean: no suicide either
+    // Undo
+    board[r][c] = 0;
+    for (const [cr, cc] of capturedPositions) board[cr][cc] = opponent;
+    setStatus('自杀禁止！Suicide forbidden', true);
+    return;
+  }
+  
+  // Ko detection
+  const newBoardStr = boardToString();
+  let newKo = null;
+  if (captured === 1 && myGroup.length === 1) {
+    // Potential ko: one captured, one stone placed
+    newKo = {r: capturedPositions[0][0], c: capturedPositions[0][1]};
+  }
+  
+  // Check superko for Chinese rules
+  if (rules === 'chinese' && lastBoardState && newBoardStr === lastBoardState) {
+    board[r][c] = 0;
+    for (const [cr, cc] of capturedPositions) board[cr][cc] = opponent;
+    setStatus('劫争禁止！Ko forbidden', true);
+    return;
+  }
+  
+  // Save state for undo
+  const letters = 'ABCDEFGHJKLMNOPQRST';
+  const coord = letters[c] + (boardSize - r);
+  
+  moveHistory.push({
+    board: board.map(row => [...row]),
+    player: currentPlayer,
+    captures: {...captures},
+    ko: koPoint,
+    coord: {r, c},
+    coordStr: coord,
+    captured
+  });
+  
+  // Update captures
+  captures[currentPlayer] += captured;
+  
+  // Update ko
+  koPoint = newKo;
+  lastBoardState = newBoardStr;
+  
+  // Switch player
+  passCount = 0;
+  moveCount++;
+  currentPlayer = opponent;
+  
+  updateUI();
+  render();
+  setStatus(currentPlayer === 1 ? '黑方落子 · Black to play' : '白方落子 · White to play');
+}
+
+function passMove() {
+  if (gameOver) return;
+  
+  const opponent = currentPlayer === 1 ? 2 : 1;
+  const letters = 'ABCDEFGHJKLMNOPQRST';
+  
+  moveHistory.push({
+    board: board.map(row => [...row]),
+    player: currentPlayer,
+    captures: {...captures},
+    ko: koPoint,
+    coord: 'pass',
+    coordStr: 'Pass',
+    captured: 0
+  });
+  
+  // Japanese rule: passing adds a prisoner
+  if (rules === 'japanese' || rules === 'korean') {
+    captures[opponent]++;
+  }
+  
+  koPoint = null;
+  moveCount++;
+  passCount++;
+  currentPlayer = opponent;
+  
+  if (passCount >= 2) {
+    endGame(false);
+    return;
+  }
+  
+  updateUI();
+  render();
+  setStatus((currentPlayer === 1 ? '黑方落子' : '白方落子') + ' (对方虚手)');
+}
+
+function undoMove() {
+  if (moveHistory.length === 0) return;
+  if (gameOver) gameOver = false;
+  
+  const last = moveHistory.pop();
+  board = last.board;
+  captures = last.captures;
+  koPoint = last.ko;
+  currentPlayer = last.player;
+  passCount = 0;
+  moveCount = Math.max(0, moveCount - 1);
+  
+  if (moveHistory.length > 0) {
+    lastBoardState = moveHistory[moveHistory.length-1].board.map(r=>r.join(',')).join('|');
+  } else {
+    lastBoardState = null;
+  }
+  
+  updateUI();
+  render();
+  setStatus(currentPlayer === 1 ? '黑方落子 · Black to play' : '白方落子 · White to play');
+}
+
+function resignGame() {
+  if (gameOver) return;
+  gameOver = true;
+  clearTimer();
+  const winner = currentPlayer === 1 ? '白方' : '黑方';
+  showModal('投降！', `${currentPlayer === 1 ? '黑方' : '白方'}投降，${winner}获胜！`, '—', '—', winner + '获胜');
+}
+
+// ─── SCORING ──────────────────────────────────────────────────────
+function countScore() {
+  if (rules === 'chinese') {
+    countChineseScore();
+  } else {
+    countJapaneseScore();
+  }
+}
+
+function floodFillTerritory(r, c, visited) {
+  const queue = [[r, c]];
+  const territory = [];
+  const borders = new Set();
+  const key0 = r * boardSize + c;
+  visited.add(key0);
+  
+  while (queue.length > 0) {
+    const [cr, cc] = queue.shift();
+    territory.push([cr, cc]);
+    for (const [nr, nc] of getAdjacentPoints(cr, cc)) {
+      const key = nr * boardSize + nc;
+      if (board[nr][nc] === 0 && !visited.has(key)) {
+        visited.add(key);
+        queue.push([nr, nc]);
+      } else if (board[nr][nc] !== 0) {
+        borders.add(board[nr][nc]);
+      }
+    }
+  }
+  return { territory, borders };
+}
+
+function countChineseScore() {
+  // Area scoring: territory + stones on board
+  const visited = new Set();
+  let blackScore = 0;
+  let whiteScore = 0;
+  
+  // Count stones
+  for (let r = 0; r < boardSize; r++) {
+    for (let c = 0; c < boardSize; c++) {
+      if (board[r][c] === 1) blackScore++;
+      else if (board[r][c] === 2) whiteScore++;
+    }
+  }
+  
+  // Count territory
+  for (let r = 0; r < boardSize; r++) {
+    for (let c = 0; c < boardSize; c++) {
+      if (board[r][c] === 0 && !visited.has(r * boardSize + c)) {
+        const {territory, borders} = floodFillTerritory(r, c, visited);
+        if (borders.size === 1) {
+          if (borders.has(1)) blackScore += territory.length;
+          else if (borders.has(2)) whiteScore += territory.length;
+        }
+      }
+    }
+  }
+  
+  const whiteTotal = whiteScore + komi;
+  updateScoreDisplay(blackScore, whiteTotal);
+  endGame(true, blackScore, whiteTotal);
+}
+
+function countJapaneseScore() {
+  // Territory scoring: territory + captures
+  const visited = new Set();
+  let blackTerritory = 0;
+  let whiteTerritory = 0;
+  
+  for (let r = 0; r < boardSize; r++) {
+    for (let c = 0; c < boardSize; c++) {
+      if (board[r][c] === 0 && !visited.has(r * boardSize + c)) {
+        const {territory, borders} = floodFillTerritory(r, c, visited);
+        if (borders.size === 1) {
+          if (borders.has(1)) blackTerritory += territory.length;
+          else if (borders.has(2)) whiteTerritory += territory.length;
+        }
+      }
+    }
+  }
+  
+  const blackScore = blackTerritory + captures[1];
+  const whiteScore = whiteTerritory + captures[2] + komi;
+  updateScoreDisplay(blackScore, whiteScore);
+  endGame(true, blackScore, whiteScore);
+}
+
+function updateScoreDisplay(b, w) {
+  document.getElementById('scoreBlack').textContent = b % 1 === 0 ? b : b.toFixed(1);
+  document.getElementById('scoreWhite').textContent = w % 1 === 0 ? w : w.toFixed(1);
+}
+
+function endGame(scored, blackScore, whiteScore) {
+  gameOver = true;
+  clearTimer();
+  
+  if (!scored) {
+    // Two passes
+    if (rules === 'chinese') countChineseScore();
+    else countJapaneseScore();
+    return;
+  }
+  
+  const winner = blackScore > whiteScore ? '⚫ 黑方胜' : '⚪ 白方胜';
+  const diff = Math.abs(blackScore - whiteScore);
+  const desc = `${winner}，差距 ${diff % 1 === 0 ? diff : diff.toFixed(1)} 目`;
+  
+  const bStr = blackScore % 1 === 0 ? blackScore : blackScore.toFixed(1);
+  const wStr = whiteScore % 1 === 0 ? whiteScore : whiteScore.toFixed(1);
+  
+  showModal('对局结束', rules === 'chinese' ? '数地计分（中国规则）' : '目数计分（日韩规则）',
+    bStr, wStr, desc);
+}
+
+// ─── UI HELPERS ───────────────────────────────────────────────────
+function updateUI() {
+  // Turn indicators
+  document.getElementById('blackIndicator').style.display = currentPlayer === 1 ? 'block' : 'none';
+  document.getElementById('whiteIndicator').style.display = currentPlayer === 2 ? 'block' : 'none';
+  document.getElementById('blackCard').classList.toggle('active-player', currentPlayer === 1);
+  document.getElementById('whiteCard').classList.toggle('active-player', currentPlayer === 2);
+  
+  document.getElementById('blackCaptures').textContent = `提子: ${captures[1]} 枚`;
+  document.getElementById('whiteCaptures').textContent = `提子: ${captures[2]} 枚`;
+  document.getElementById('scoreMoves').textContent = moveCount;
+  document.getElementById('scoreKomi').textContent = komi;
+  
+  // Move list
+  const ml = document.getElementById('moveList');
+  ml.innerHTML = '';
+  moveHistory.forEach((m, i) => {
+    const div = document.createElement('div');
+    div.className = 'move-item';
+    const isBlack = m.player === 1;
+    div.innerHTML = `
+      <span class="move-num">${i+1}</span>
+      <span class="move-dot ${isBlack ? 'b' : 'w'}"></span>
+      <span class="move-coord">${m.coordStr}</span>
+      ${m.captured > 0 ? `<span style="color:var(--rose);font-size:0.68rem">×${m.captured}</span>` : ''}
+    `;
+    ml.appendChild(div);
+  });
+  ml.scrollTop = ml.scrollHeight;
+}
+
+function setStatus(msg, warn = false) {
+  const sb = document.getElementById('statusBar');
+  sb.textContent = msg;
+  sb.className = 'status-bar' + (warn ? ' warning' : '');
+}
+
+function setRules(r) {
+  rules = r;
+  document.querySelectorAll('.rule-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('btn-' + r).classList.add('active');
+  
+  const komiMap = { chinese: 7.5, japanese: 6.5, korean: 6.5 };
+  komi = komiMap[r];
+  document.getElementById('komiInput').value = komi;
+  document.getElementById('scoreKomi').textContent = komi;
+  
+  const texts = {
+    chinese: '<strong>中国规则：</strong><br>· 数地法（地 + 子）<br>· 贴目 7.5<br>· 禁止自杀<br>· 劫争规则',
+    japanese: '<strong>日本规则：</strong><br>· 目数法（地 + 提子）<br>· 贴目 6.5<br>· 禁止自杀<br>· 虚手加提子',
+    korean: '<strong>韩国规则：</strong><br>· 目数法（地 + 提子）<br>· 贴目 6.5<br>· 禁止自杀<br>· 类似日本规则'
+  };
+  document.getElementById('rulesText').innerHTML = texts[r];
+}
+
+function setSize(s) {
+  boardSize = s;
+  document.querySelectorAll('.size-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('btn-' + s).classList.add('active');
+  startNewGame();
+}
+
+function startNewGame() {
+  handicap = parseInt(document.getElementById('handicapSelect').value) || 0;
+  komi = parseFloat(document.getElementById('komiInput').value) || 7.5;
+  initBoard();
+  setStatus('黑方落子 · Black to play');
+  document.getElementById('scoreBlack').textContent = '—';
+  document.getElementById('scoreWhite').textContent = '—';
+}
+
+// ─── TIMER ────────────────────────────────────────────────────────
+function startTimer() {
+  timer = 0;
+  timerInterval = setInterval(() => {
+    timer++;
+    const m = Math.floor(timer / 60).toString().padStart(2, '0');
+    const s = (timer % 60).toString().padStart(2, '0');
+    document.getElementById('timerDisplay').textContent = `${m}:${s}`;
+  }, 1000);
+}
+
+function clearTimer() {
+  if (timerInterval) clearInterval(timerInterval);
+  timerInterval = null;
+  document.getElementById('timerLabel').textContent = gameOver ? '对局结束' : '游戏进行中';
+}
+
+// ─── MODAL ────────────────────────────────────────────────────────
+function showModal(title, desc, bScore, wScore, winner) {
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalDesc').textContent = desc;
+  document.getElementById('modalBlack').textContent = bScore;
+  document.getElementById('modalWhite').textContent = wScore;
+  document.getElementById('modalWinner').textContent = winner;
+  document.getElementById('modalOverlay').classList.add('show');
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('show');
+}
+
+// ─── CANVAS EVENTS ────────────────────────────────────────────────
+function getBoardPos(clientX, clientY) {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  const x = (clientX - rect.left) * scaleX;
+  const y = (clientY - rect.top) * scaleY;
+  const c = Math.round((x - MARGIN) / CELL);
+  const r = Math.round((y - MARGIN) / CELL);
+  if (r >= 0 && r < boardSize && c >= 0 && c < boardSize) return {r, c};
+  return null;
+}
+
+canvas.addEventListener('click', e => {
+  const pos = getBoardPos(e.clientX, e.clientY);
+  if (pos) placeStone(pos.r, pos.c);
+});
+
+canvas.addEventListener('mousemove', e => {
+  const pos = getBoardPos(e.clientX, e.clientY);
+  hoverPos = pos;
+  render();
+});
+
+canvas.addEventListener('mouseleave', () => {
+  hoverPos = null;
+  render();
+});
+
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault();
+  const touch = e.touches[0];
+  const pos = getBoardPos(touch.clientX, touch.clientY);
+  if (pos) placeStone(pos.r, pos.c);
+}, {passive: false});
+
+document.getElementById('modalOverlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('modalOverlay')) closeModal();
+});
+
+// ─── KEYBOARD SHORTCUTS ───────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key === 'z' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); undoMove(); }
+  if (e.key === 'p') passMove();
+  if (e.key === 'Escape') closeModal();
+});
+
+// ─── START ────────────────────────────────────────────────────────
+startNewGame();
+</script>
+</body>
+</html>
